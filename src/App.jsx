@@ -4,6 +4,7 @@ import {
     Globe, Receipt, ArrowRight, ShieldAlert, ShieldCheck,
     ChevronDown, Smartphone, Stethoscope, PiggyBank, Briefcase, Users, Zap
 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- TAX LOGIC & DATA (Verified YA 2025/2026) ---
 const TAX_BRACKETS = [
@@ -817,6 +818,7 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
       `}} />
+            <Analytics />
         </div>
     );
 }
