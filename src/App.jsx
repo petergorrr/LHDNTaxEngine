@@ -63,7 +63,8 @@ const DICT = {
         tipsTitle: "System Insights (引擎洞察)",
         tip1: "PCB 只是官方预收的押金。年度报税的核心是通过合法申报 Tax Relief，把多缴的钱合法拿回来。",
         tip2: "法定截止日期为 4月30日 (Borang BE)，通过 ezHASiL 电子报税可享有额外 15 天宽限期。",
-        quickAdd: "快速添加 (Quick Add):"
+        quickAdd: "快速添加 (Quick Add):",
+        disclaimer: "免责声明：本工具仅供估算参考，并非绝对准确的税务承诺应用。"
     },
     en: {
         title: "LHDN Tax Engine",
@@ -107,7 +108,8 @@ const DICT = {
         tipsTitle: "System Insights",
         tip1: "PCB is merely a deposit. Tax submission is the process of declaring legal Tax Reliefs to claim back any overpaid PCB (Tax Refund).",
         tip2: "Statutory deadline is April 30. e-Filing via ezHASiL grants an automatic 15-day grace period.",
-        quickAdd: "Quick Add:"
+        quickAdd: "Quick Add:",
+        disclaimer: "Disclaimer: This calculator is for estimation purposes only and is not a fully accurate promised app to rely on."
     },
     ms: {
         title: "LHDN Tax Engine",
@@ -151,7 +153,8 @@ const DICT = {
         tipsTitle: "Pandangan Sistem",
         tip1: "PCB hanyalah deposit. Pemfailan cukai adalah proses mengisytiharkan Pelepasan Cukai yang sah untuk menuntut balik PCB yang terlebih bayar.",
         tip2: "Tarikh akhir berkanun ialah 30 April. e-Filing melalui ezHASiL memberikan tempoh lanjutan automatik 15 hari.",
-        quickAdd: "Tambah Cepat:"
+        quickAdd: "Tambah Cepat:",
+        disclaimer: "Penafian: Kalkulator ini hanya untuk tujuan anggaran dan bukan aplikasi yang menjanjikan ketepatan sepenuhnya."
     }
 };
 
@@ -797,7 +800,10 @@ export default function App() {
             </div>
 
             {/* Footer */}
-            <footer className="mt-12 pb-8 flex justify-center">
+            <footer className="mt-12 pb-8 flex flex-col items-center justify-center gap-4">
+                <div className="text-sm text-slate-500 mx-4 max-w-3xl text-center px-6 py-3.5 leading-relaxed font-medium bg-slate-100/50 rounded-xl ring-1 ring-slate-200/50">
+                    {t.disclaimer}
+                </div>
                 <a
                     href="https://petergorrr.lovable.app/"
                     target="_blank"
