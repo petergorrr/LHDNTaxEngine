@@ -425,7 +425,6 @@ export default function App() {
                 {/* Header - Apple-esque Minimalism */}
                 <header className="flex flex-col md:flex-row md:items-center justify-between bg-white px-6 py-5 rounded-3xl shadow-sm ring-1 ring-slate-200">
                     <div className="flex items-center gap-3">
-                        <img src="/favicon.jpg" alt="Tax Capybara" className="w-9 h-9 rounded-xl object-cover shadow-md shadow-blue-200 ring-1 ring-slate-200" />
                         <div>
                             <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">
                                 {t.title}
