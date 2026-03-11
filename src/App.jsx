@@ -804,7 +804,7 @@ export default function App() {
                     {t.disclaimer}
                 </div>
                 <a
-                    href="https://petergorrr.lovable.app/"
+                    href="https://www.petergorrr.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2.5 px-4 py-2 bg-white rounded-full shadow-sm ring-1 ring-slate-200/60 text-sm font-medium text-slate-500 hover:text-blue-600 hover:shadow-md hover:ring-blue-200 transition-all duration-300 group"
