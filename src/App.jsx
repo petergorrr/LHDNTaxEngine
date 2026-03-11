@@ -65,7 +65,11 @@ const DICT = {
         tip1: "PCB 只是官方预收的押金。年度报税的核心是通过合法申报 Tax Relief，把多缴的钱合法拿回来。",
         tip2: "法定截止日期为 4月30日 (Borang BE)，通过 ezHASiL 电子报税可享有额外 15 天宽限期。",
         quickAdd: "快速添加 (Quick Add):",
-        disclaimer: "免责声明：本工具仅供估算参考，并非绝对准确的税务承诺应用。"
+        disclaimer: "免责声明：本工具仅供估算参考，并非绝对准确的税务承诺应用。",
+        monthlyMode: "月薪计算 (Monthly)",
+        annualMode: "年薪计算 (Annual)",
+        annualSalary: "全年总薪资 (Gross Annual)",
+        annualSalaryHelp: "全年薪资 + 花红等"
     },
     en: {
         title: "LHDN Tax Engine",
@@ -110,7 +114,11 @@ const DICT = {
         tip1: "PCB is merely a deposit. Tax submission is the process of declaring legal Tax Reliefs to claim back any overpaid PCB (Tax Refund).",
         tip2: "Statutory deadline is April 30. e-Filing via ezHASiL grants an automatic 15-day grace period.",
         quickAdd: "Quick Add:",
-        disclaimer: "Disclaimer: This calculator is for estimation purposes only and is not a fully accurate promised app to rely on."
+        disclaimer: "Disclaimer: This calculator is for estimation purposes only and is not a fully accurate promised app to rely on.",
+        monthlyMode: "Monthly",
+        annualMode: "Annually",
+        annualSalary: "Total Gross Salary",
+        annualSalaryHelp: "Gross Salary + Bonus etc."
     },
     ms: {
         title: "LHDN Tax Engine",
@@ -155,7 +163,11 @@ const DICT = {
         tip1: "PCB hanyalah deposit. Pemfailan cukai adalah proses mengisytiharkan Pelepasan Cukai yang sah untuk menuntut balik PCB yang terlebih bayar.",
         tip2: "Tarikh akhir berkanun ialah 30 April. e-Filing melalui ezHASiL memberikan tempoh lanjutan automatik 15 hari.",
         quickAdd: "Tambah Cepat:",
-        disclaimer: "Penafian: Kalkulator ini hanya untuk tujuan anggaran dan bukan aplikasi yang menjanjikan ketepatan sepenuhnya."
+        disclaimer: "Penafian: Kalkulator ini hanya untuk tujuan anggaran dan bukan aplikasi yang menjanjikan ketepatan sepenuhnya.",
+        monthlyMode: "Bulanan",
+        annualMode: "Tahunan",
+        annualSalary: "Jumlah Gaji Kasar",
+        annualSalaryHelp: "Gaji Kasar + Bonus dll."
     }
 };
 
@@ -224,7 +236,10 @@ const RELIEF_DATABASE = {
 };
 
 // --- SHARED HELPERS ---
-const calcGrossIncome = (emps) => emps.reduce((sum, emp) => {
+const calcGrossIncome = (emps, incomeMode) => emps.reduce((sum, emp) => {
+    if (incomeMode === 'annual') {
+        return sum + (parseFloat(emp.annualSalary) || 0);
+    }
     const sal = parseFloat(emp.monthlySalary) || 0;
     const m = parseInt(emp.months) || 0;
     const b = parseFloat(emp.bonus) || 0;
@@ -253,9 +268,12 @@ export default function App() {
     const [lang, setLang] = useStickyState('en', 'lhdn-lang');
     const t = DICT[lang];
     const [year, setYear] = useStickyState(2026, 'lhdn-year');
+    
+    // 'monthly' or 'annual'
+    const [incomeMode, setIncomeMode] = useStickyState('annual', 'lhdn-income-mode');
 
     const [employments, setEmployments] = useStickyState([
-        { id: 'emp-1', monthlySalary: '', months: 12, bonus: '', pcb: '' }
+        { id: 'emp-1', monthlySalary: '', months: 12, bonus: '', pcb: '', annualSalary: '' }
     ], 'lhdn-employments');
 
     const [userReliefs, setUserReliefs] = useStickyState([], 'lhdn-reliefs');
@@ -299,7 +317,7 @@ export default function App() {
 
     // Auto EPF Injection Logic
     useEffect(() => {
-        const gross = calcGrossIncome(employments);
+        const gross = calcGrossIncome(employments, incomeMode);
 
         if (gross > 0) {
             const estimatedKwsp = gross * 0.11;
@@ -310,7 +328,7 @@ export default function App() {
         } else {
             setUserReliefs(prev => prev.filter(r => r.categoryId !== 'kwsp' || !r.isAuto));
         }
-    }, [employments, setUserReliefs]);
+    }, [employments, incomeMode, setUserReliefs]);
 
     const handleYearChange = (newYear) => {
         setYear(newYear);
@@ -364,7 +382,7 @@ export default function App() {
     const addEmployment = () => {
         setEmployments(prev => [
             ...prev,
-            { id: Date.now().toString(), monthlySalary: '', months: 1, bonus: '', pcb: '' }
+            { id: Date.now().toString(), monthlySalary: '', months: 1, bonus: '', pcb: '', annualSalary: '' }
         ]);
     };
 
@@ -373,7 +391,7 @@ export default function App() {
     };
 
     const calculations = useMemo(() => {
-        const grossIncome = calcGrossIncome(employments);
+        const grossIncome = calcGrossIncome(employments, incomeMode);
         const pcb = employments.reduce((sum, emp) => sum + (parseFloat(emp.pcb) || 0), 0);
         const INDIVIDUAL_RELIEF = 9000;
 
@@ -435,7 +453,7 @@ export default function App() {
             rebate, taxAssessed, finalBalance, isBelowThreshold,
             marginalRate: marginalRate * 100
         };
-    }, [employments, userReliefs, availableReliefs]);
+    }, [employments, incomeMode, userReliefs, availableReliefs]);
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900 selection:bg-blue-200">
@@ -486,9 +504,27 @@ export default function App() {
 
                         {/* Income Section */}
                         <section className="bg-white p-6 md:p-8 rounded-3xl shadow-sm ring-1 ring-slate-200">
-                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-900">
-                                <Briefcase className="text-blue-500" size={20} /> {t.incomeTitle}
-                            </h2>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <h2 className="text-lg font-bold flex items-center gap-2 text-slate-900">
+                                    <Briefcase className="text-blue-500" size={20} /> {t.incomeTitle}
+                                </h2>
+                                
+                                {/* Income Mode Toggle */}
+                                <div className="flex bg-slate-100 p-1 rounded-full ring-1 ring-slate-200/80 shrink-0 min-w-[300px] h-11">
+                                    <button
+                                        onClick={() => setIncomeMode('annual')}
+                                        className={`flex-1 h-full px-5 py-0 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center justify-center ${incomeMode === 'annual' ? 'bg-white shadow-sm text-slate-900 ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {t.annualMode}
+                                    </button>
+                                    <button
+                                        onClick={() => setIncomeMode('monthly')}
+                                        className={`flex-1 h-full px-5 py-0 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center justify-center ${incomeMode === 'monthly' ? 'bg-white shadow-sm text-slate-900 ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {t.monthlyMode}
+                                    </button>
+                                </div>
+                            </div>
 
                             <div className="space-y-6">
                                 {employments.map((emp, index) => (
@@ -508,38 +544,56 @@ export default function App() {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                                            <div className="md:col-span-5">
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.monthlySalary}</label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
-                                                    <input
-                                                        type="number" value={emp.monthlySalary} onChange={(e) => updateEmployment(emp.id, 'monthlySalary', e.target.value)} placeholder="0"
-                                                        className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
-                                                    />
+                                            {incomeMode === 'annual' ? (
+                                                <div className="md:col-span-12">
+                                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                                        <span>{t.annualSalary}</span>
+                                                        <span className="text-[10px] text-slate-400 font-normal normal-case">{t.annualSalaryHelp}</span>
+                                                    </label>
+                                                    <div className="relative group">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
+                                                        <input
+                                                            type="number" value={emp.annualSalary} onChange={(e) => updateEmployment(emp.id, 'annualSalary', e.target.value)} placeholder="0"
+                                                            className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <>
+                                                    <div className="md:col-span-5">
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.monthlySalary}</label>
+                                                        <div className="relative group">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
+                                                            <input
+                                                                type="number" value={emp.monthlySalary} onChange={(e) => updateEmployment(emp.id, 'monthlySalary', e.target.value)} placeholder="0"
+                                                                className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            <div className="md:col-span-4">
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.bonus}</label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
-                                                    <input
-                                                        type="number" value={emp.bonus} onChange={(e) => updateEmployment(emp.id, 'bonus', e.target.value)} placeholder="0"
-                                                        className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
-                                                    />
-                                                </div>
-                                            </div>
+                                                    <div className="md:col-span-4">
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.bonus}</label>
+                                                        <div className="relative group">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
+                                                            <input
+                                                                type="number" value={emp.bonus} onChange={(e) => updateEmployment(emp.id, 'bonus', e.target.value)} placeholder="0"
+                                                                className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            <div className="md:col-span-3">
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.monthsLabel}</label>
-                                                <div className="relative group">
-                                                    <input
-                                                        type="number" value={emp.months} onChange={(e) => updateEmployment(emp.id, 'months', e.target.value)} placeholder="12" min="1" max="12"
-                                                        className="w-full px-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900 text-center"
-                                                    />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-[10px] pointer-events-none">mths</span>
-                                                </div>
-                                            </div>
+                                                    <div className="md:col-span-3">
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.monthsLabel}</label>
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="number" value={emp.months} onChange={(e) => updateEmployment(emp.id, 'months', e.target.value)} placeholder="12" min="1" max="12"
+                                                                className="w-full px-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900 text-center"
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-[10px] pointer-events-none">mths</span>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
 
                                             <div className="md:col-span-12 pt-1">
                                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{t.pcb}</label>
