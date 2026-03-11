@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Plus, Trash2, Info, CheckCircle2, AlertCircle,
     Globe, Receipt, ArrowRight, ShieldAlert, ShieldCheck,
-    ChevronDown, Smartphone, Stethoscope, PiggyBank, Briefcase, Users, Zap
+    ChevronDown, Smartphone, Stethoscope, PiggyBank, Briefcase, Users, Zap,
+    Search, X, Check
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -261,6 +262,24 @@ export default function App() {
 
     const [selectedReliefId, setSelectedReliefId] = useState('');
     const [reliefAmount, setReliefAmount] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    
+    // Modal State
+    const [isReliefsInfoOpen, setIsReliefsInfoOpen] = useState(false);
+    const [modalSearchQuery, setModalSearchQuery] = useState('');
+    
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const availableReliefs = RELIEF_DATABASE[year];
 
@@ -555,6 +574,11 @@ export default function App() {
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                         <Receipt className="text-emerald-500" size={20} /> {t.reliefTitle}
+                                        <Info 
+                                            size={18} 
+                                            className="text-slate-400 hover:text-blue-500 cursor-pointer transition-colors ml-1" 
+                                            onClick={() => setIsReliefsInfoOpen(true)}
+                                        />
                                     </h2>
                                     <p className="text-sm text-slate-500 mt-1">{t.autoDeduct}</p>
                                 </div>
@@ -584,23 +608,91 @@ export default function App() {
 
                             {/* Input Form */}
                             <div className="flex flex-col md:flex-row gap-3 mb-8 p-1 items-stretch h-auto md:h-14">
-                                <div className="relative flex-1 h-full min-h-[56px]">
-                                    <select
-                                        value={selectedReliefId} onChange={(e) => setSelectedReliefId(e.target.value)}
-                                        className="w-full h-full appearance-none pl-4 pr-10 py-3 md:py-0 bg-slate-50 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+                                <div className="relative flex-1 h-full min-h-[56px]" ref={dropdownRef}>
+                                    <div
+                                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                        className="w-full h-full flex items-center justify-between pl-4 pr-10 py-3 md:py-0 bg-slate-50 ring-1 ring-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 text-sm font-semibold text-slate-800 transition-all cursor-pointer"
                                     >
-                                        <option value="" disabled>{t.selectRelief}</option>
-                                        {Object.entries(groupedReliefs).map(([groupName, reliefs]) => (
-                                            <optgroup key={groupName} label={groupName} className="font-bold text-slate-400 bg-white">
-                                                {reliefs.map(rel => (
-                                                    <option key={rel.id} value={rel.id} className="font-medium text-slate-900 py-2">
-                                                        {rel.label[lang]} (Max RM {rel.max.toLocaleString()})
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
-                                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        <span className={selectedReliefId ? "text-slate-900 line-clamp-1" : "text-slate-400"}>
+                                            {selectedItemInfo ? `${selectedItemInfo.label[lang]} (Max RM ${selectedItemInfo.max.toLocaleString()})` : t.selectRelief}
+                                        </span>
+                                        <ChevronDown size={16} className={`absolute right-4 text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                    
+                                    {isDropdownOpen && (
+                                        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white rounded-xl ring-1 ring-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[400px]">
+                                            <div className="p-3 border-b border-slate-100 flex items-center gap-2 sticky top-0 bg-white z-20">
+                                                <Search size={16} className="text-slate-400 shrink-0" />
+                                                <input
+                                                    type="text"
+                                                    autoFocus
+                                                    placeholder={lang === 'zh' ? '搜索...' : lang === 'ms' ? 'Cari...' : 'Search...'}
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="w-full text-sm font-medium outline-none placeholder:text-slate-400 bg-transparent text-slate-900"
+                                                />
+                                                {searchQuery && (
+                                                    <button onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors">
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
+                                                {Object.entries(groupedReliefs).map(([groupName, reliefs]) => {
+                                                    const filtered = reliefs.filter(rel => 
+                                                        rel.label[lang].toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                                        rel.desc[lang].toLowerCase().includes(searchQuery.toLowerCase())
+                                                    );
+                                                    if (filtered.length === 0) return null;
+                                                    return (
+                                                        <div key={groupName} className="mb-2 last:mb-0">
+                                                            <div className="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider sticky top-0 bg-white/95 backdrop-blur z-10">
+                                                                {groupName}
+                                                            </div>
+                                                            <div className="space-y-0.5 mt-1">
+                                                                {filtered.map(rel => (
+                                                                    <button
+                                                                        key={rel.id}
+                                                                        ref={(el) => {
+                                                                            if (selectedReliefId === rel.id && el && isDropdownOpen) {
+                                                                                setTimeout(() => {
+                                                                                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                                                                }, 50);
+                                                                            }
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            setSelectedReliefId(rel.id);
+                                                                            setIsDropdownOpen(false);
+                                                                            setSearchQuery('');
+                                                                        }}
+                                                                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between group transition-colors ${selectedReliefId === rel.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                                                                    >
+                                                                        <div className="pr-4">
+                                                                            <div className={`text-sm font-semibold transition-colors ${selectedReliefId === rel.id ? 'text-blue-700' : 'group-hover:text-slate-900'}`}>
+                                                                                {rel.label[lang]} <span className="text-xs font-mono ml-1 text-slate-400 font-medium">(Max RM {rel.max.toLocaleString()})</span>
+                                                                            </div>
+                                                                            <div className={`text-xs mt-1 transition-colors leading-relaxed ${selectedReliefId === rel.id ? 'text-blue-600/80' : 'text-slate-500 group-hover:text-slate-600'}`}>
+                                                                                {rel.desc[lang]}
+                                                                            </div>
+                                                                        </div>
+                                                                        {selectedReliefId === rel.id && <Check size={16} className="text-blue-600 shrink-0" />}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {Object.values(groupedReliefs).flat().filter(rel => rel.label[lang].toLowerCase().includes(searchQuery.toLowerCase()) || rel.desc[lang].toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                                    <div className="p-8 text-center flex flex-col items-center justify-center">
+                                                        <Search size={24} className="text-slate-300 mb-2" />
+                                                        <span className="text-sm text-slate-500 font-medium mt-1">
+                                                            {lang === 'zh' ? '未找到匹配的税务减免项目' : lang === 'ms' ? 'Tiada pelepasan cukai yang sepadan dijumpai' : 'No matching tax reliefs found'}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="relative w-full md:w-44 shrink-0 group h-full min-h-[56px]">
@@ -797,6 +889,129 @@ export default function App() {
 
                 </div>
             </div>
+
+            {/* Reliefs Info Modal */}
+            {isReliefsInfoOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md sm:p-6" onClick={() => { setIsReliefsInfoOpen(false); setModalSearchQuery(''); }}>
+                    <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-200/50" onClick={(e) => e.stopPropagation()}>
+                        
+                        {/* Modal Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:px-8 md:py-6 border-b border-slate-100 bg-white/95 sticky top-0 z-20 backdrop-blur gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-50 p-2.5 rounded-2xl ring-1 ring-blue-100 shrink-0">
+                                    <Receipt className="text-blue-500" size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                                        {lang === 'zh' ? '税务减免白皮书' : lang === 'ms' ? 'Panduan Pelepasan Cukai' : 'Tax Reliefs Guide'}
+                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ring-1 ring-slate-200/50">YA {year}</span>
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-0.5 font-medium">
+                                        {lang === 'zh' ? '完整减免项目、条件及上限概览' : lang === 'ms' ? 'Gambaran keseluruhan pelepasan, syarat & had' : 'Overview of all available reliefs, conditions & limits'}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                {/* Search Bar */}
+                                <div className="relative group flex-1 sm:w-64">
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                                    <input 
+                                        type="text" 
+                                        value={modalSearchQuery}
+                                        onChange={(e) => setModalSearchQuery(e.target.value)}
+                                        placeholder={lang === 'zh' ? '搜索...' : lang === 'ms' ? 'Cari pelepasan...' : 'Search reliefs...'}
+                                        className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                                    />
+                                    {modalSearchQuery && (
+                                        <button 
+                                            onClick={() => setModalSearchQuery('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                <button onClick={() => { setIsReliefsInfoOpen(false); setModalSearchQuery(''); }} className="shrink-0 text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 p-2.5 rounded-xl transition-colors ring-1 ring-slate-200 hover:ring-rose-200">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="overflow-y-auto flex-1 custom-scrollbar bg-slate-50/50 relative">
+                            {Object.entries(groupedReliefs).map(([groupName, reliefs]) => {
+                                const filteredReliefs = reliefs.filter(rel => 
+                                    rel.label[lang].toLowerCase().includes(modalSearchQuery.toLowerCase()) || 
+                                    rel.desc[lang].toLowerCase().includes(modalSearchQuery.toLowerCase())
+                                );
+
+                                if (filteredReliefs.length === 0) return null;
+
+                                return (
+                                    <div key={groupName} className="mb-8 last:mb-0 p-5 md:p-8 border-b border-slate-200/50 last:border-0 relative">
+                                        
+                                        {/* Category Header */}
+                                        <div className="flex items-center gap-3 mb-6 sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm py-2 -mt-2">
+                                            <div className="h-px bg-slate-200 flex-1"></div>
+                                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest px-2 bg-slate-100 rounded-lg py-1 ring-1 ring-slate-200/50">
+                                                {groupName}
+                                            </h4>
+                                            <div className="h-px bg-slate-200 flex-1"></div>
+                                        </div>
+
+                                        {/* Category Items */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {filteredReliefs.map((rel, index) => (
+                                                <div 
+                                                    key={rel.id} 
+                                                    className="bg-white p-5 rounded-2xl ring-1 ring-slate-200/70 hover:ring-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all group flex flex-col justify-between"
+                                                    style={{ animationDelay: `${index * 50}ms` }}
+                                                >
+                                                    <div>
+                                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                                            <div className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors leading-tight">
+                                                                {rel.label[lang]}
+                                                            </div>
+                                                            <div className="bg-slate-50 px-2.5 py-1 rounded-lg ring-1 ring-slate-200 shrink-0">
+                                                                <div className="font-mono font-bold text-slate-700 text-sm tracking-tight text-right">
+                                                                    RM {rel.max.toLocaleString()}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-sm text-slate-500 font-medium leading-relaxed">
+                                                            {rel.desc[lang]}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            
+                            {/* Empty State */}
+                            {Object.values(groupedReliefs).flat().filter(rel => 
+                                rel.label[lang].toLowerCase().includes(modalSearchQuery.toLowerCase()) || 
+                                rel.desc[lang].toLowerCase().includes(modalSearchQuery.toLowerCase())
+                            ).length === 0 && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-500 min-h-[300px]">
+                                    <div className="bg-white p-4 rounded-full ring-1 ring-slate-200 mb-4 shadow-sm">
+                                        <Search size={32} className="text-slate-300" />
+                                    </div>
+                                    <p className="font-bold text-slate-700 text-base mb-1">
+                                        {lang === 'zh' ? '没有找到相关减免项目' : lang === 'ms' ? 'Tiada pelepasan dijumpai' : 'No matching reliefs found'}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                        {lang === 'zh' ? '请尝试不同的搜索词' : lang === 'ms' ? 'Sila cuba kata kunci lain' : 'Try adjusting your search terms'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Footer */}
             <footer className="mt-12 pb-8 flex flex-col items-center justify-center gap-4">
