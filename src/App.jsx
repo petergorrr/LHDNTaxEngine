@@ -257,11 +257,16 @@ const calcGrossIncome = (emps, incomeMode) => emps.reduce((sum, emp) => {
 }, 0);
 
 // Custom Hook for State Persistence
-function useStickyState(defaultValue, key) {
+function useStickyState(defaultValue, key, validator = null) {
     const [value, setValue] = useState(() => {
         try {
             const stickyValue = window.localStorage.getItem(key);
-            return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+            const parsed = stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+            // Apply validator if provided, return defaultValue if invalid
+            if (validator && !validator(parsed)) {
+                return defaultValue;
+            }
+            return parsed;
         } catch (err) {
             return defaultValue;
         }
@@ -273,6 +278,19 @@ function useStickyState(defaultValue, key) {
 
     return [value, setValue];
 }
+
+// Validator for reliefs array - ensures amounts are reasonable numbers
+const validateReliefs = (reliefs) => {
+    if (!Array.isArray(reliefs)) return false;
+    return reliefs.every(r =>
+        r &&
+        typeof r.categoryId === 'string' &&
+        typeof r.amount === 'number' &&
+        !isNaN(r.amount) &&
+        r.amount >= 0 &&
+        r.amount <= 1000000 // Max reasonable relief amount
+    );
+};
 
 export default function App() {
     const [lang, setLang] = useStickyState('en', 'lhdn-lang');
@@ -286,7 +304,7 @@ export default function App() {
         { id: 'emp-1', monthlySalary: '', months: 12, bonus: '', pcb: '', annualSalary: '' }
     ], 'lhdn-employments');
 
-    const [userReliefs, setUserReliefs] = useStickyState([], 'lhdn-reliefs');
+    const [userReliefs, setUserReliefs] = useStickyState([], 'lhdn-reliefs', validateReliefs);
 
     const [selectedReliefId, setSelectedReliefId] = useState('');
     const [reliefAmount, setReliefAmount] = useState('');
@@ -329,24 +347,30 @@ export default function App() {
         return availableReliefs.find(r => r.id === selectedReliefId);
     }, [selectedReliefId, availableReliefs]);
 
-    // Auto EPF Injection Logic
+    // Auto EPF Injection Logic - only runs when there's actual income
     useEffect(() => {
         const gross = calcGrossIncome(employments, incomeMode);
 
         if (gross > 0) {
-            const estimatedKwsp = gross * 0.11;
+            const estimatedKwsp = Math.round(gross * 0.11);
             setUserReliefs(prev => {
+                // Only update if user hasn't manually set KWSP
+                const hasManualKwsp = prev.some(r => r.categoryId === 'kwsp' && !r.isAuto);
+                if (hasManualKwsp) return prev; // Don't override manual entry
+
                 const filtered = prev.filter(r => r.categoryId !== 'kwsp');
                 return [...filtered, { id: 'auto_kwsp', categoryId: 'kwsp', amount: estimatedKwsp, isAuto: true }];
             });
         } else {
+            // Only remove auto KWSP when no income, keep manual entries
             setUserReliefs(prev => prev.filter(r => r.categoryId !== 'kwsp' || !r.isAuto));
         }
-    }, [employments, incomeMode, setUserReliefs]);
+    }, [employments, incomeMode, year, setUserReliefs]);
 
     const handleYearChange = (newYear) => {
         setYear(newYear);
-        setUserReliefs(prev => prev.filter(r => r.categoryId === 'kwsp' && r.isAuto));
+        // Clear all manual reliefs when changing years (relief definitions may differ)
+        setUserReliefs(prev => prev.filter(r => r.isAuto));
         setSelectedReliefId('');
         setReliefAmount('');
     };
@@ -354,17 +378,11 @@ export default function App() {
     const handleAddRelief = () => {
         if (!selectedReliefId || !reliefAmount || isNaN(reliefAmount)) return;
         const amountVal = parseFloat(reliefAmount);
+        if (amountVal < 0) return;
 
         setUserReliefs(prev => {
-            // UX Improvement: Merge duplicates instead of stacking them
-            const exists = prev.find(r => r.categoryId === selectedReliefId && !r.isAuto);
-            if (exists) {
-                return prev.map(r =>
-                    r.categoryId === selectedReliefId && !r.isAuto
-                        ? { ...r, amount: r.amount + amountVal }
-                        : r
-                );
-            }
+            // Remove any existing entry for this category (replace, don't stack)
+            const filtered = prev.filter(r => r.categoryId !== selectedReliefId);
 
             const newRelief = {
                 id: Date.now().toString(),
@@ -373,10 +391,7 @@ export default function App() {
                 isAuto: false
             };
 
-            if (selectedReliefId === 'kwsp') {
-                return [...prev.filter(r => r.categoryId !== 'kwsp'), newRelief]; // Override auto if manual
-            }
-            return [...prev, newRelief];
+            return [...filtered, newRelief];
         });
         setSelectedReliefId('');
         setReliefAmount('');
@@ -389,8 +404,12 @@ export default function App() {
 
     // Edit relief handlers
     const startEditRelief = (relief) => {
+        // Find the actual relief entry from userReliefs using the category ID
+        const actualEntry = userReliefs.find(r => r.categoryId === relief.id && !r.isAuto);
+        const actualAmount = actualEntry ? actualEntry.amount : 0;
+
         setEditingReliefId(relief.id);
-        setEditingAmount(relief.userTotal.toString());
+        setEditingAmount(Math.round(actualAmount).toString());
     };
 
     const cancelEditRelief = () => {
@@ -418,6 +437,11 @@ export default function App() {
     };
 
     const updateEmployment = (id, field, value) => {
+        // Prevent negative values for monetary fields
+        if (['monthlySalary', 'bonus', 'pcb', 'annualSalary'].includes(field)) {
+            const numValue = parseFloat(value);
+            if (numValue < 0) return;
+        }
         setEmployments(prev => prev.map(emp =>
             emp.id === id ? { ...emp, [field]: value } : emp
         ));
@@ -470,14 +494,14 @@ export default function App() {
             const taxForThisBracket = taxableInThisBracket * bracket.rate;
             if (taxForThisBracket > 0) {
                 marginalRate = bracket.rate;
-                taxSteps.push({ rate: bracket.rate * 100, amount: taxableInThisBracket, tax: taxForThisBracket });
+                taxSteps.push({ rate: Math.round(bracket.rate * 100), amount: taxableInThisBracket, tax: taxForThisBracket });
             }
             taxAssessed += taxForThisBracket;
             remainingIncome -= taxableInThisBracket;
         }
 
         // Backfill tax impact now that marginal rate is known
-        reliefBreakdown.forEach(r => { r.taxImpact = r.cappedAmount * marginalRate; });
+        reliefBreakdown.forEach(r => { r.taxImpact = Math.round(r.cappedAmount * marginalRate); });
 
         let rebate = 0;
         if (chargeableIncome > 0 && chargeableIncome <= 35000) {
@@ -496,7 +520,7 @@ export default function App() {
             grossIncome, pcb, chargeableIncome, totalClaimedReliefs,
             individualRelief: INDIVIDUAL_RELIEF, reliefBreakdown, taxSteps,
             rebate, taxAssessed, finalBalance, isBelowThreshold,
-            marginalRate: marginalRate * 100
+            marginalRate: Math.round(marginalRate * 100)
         };
     }, [employments, incomeMode, userReliefs, availableReliefs, year]);
 
@@ -598,7 +622,7 @@ export default function App() {
                                                     <div className="relative group">
                                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                         <input
-                                                            type="number" value={emp.annualSalary} onChange={(e) => updateEmployment(emp.id, 'annualSalary', e.target.value)} placeholder="0"
+                                                            type="number" value={emp.annualSalary} onChange={(e) => updateEmployment(emp.id, 'annualSalary', e.target.value)} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} placeholder="0" min="0"
                                                             aria-label={t.annualSalary}
                                                             className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                         />
@@ -611,7 +635,7 @@ export default function App() {
                                                         <div className="relative group">
                                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                             <input
-                                                                type="number" value={emp.monthlySalary} onChange={(e) => updateEmployment(emp.id, 'monthlySalary', e.target.value)} placeholder="0"
+                                                                type="number" value={emp.monthlySalary} onChange={(e) => updateEmployment(emp.id, 'monthlySalary', e.target.value)} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} placeholder="0" min="0"
                                                                 aria-label={t.monthlySalary}
                                                                 className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                             />
@@ -623,7 +647,7 @@ export default function App() {
                                                         <div className="relative group">
                                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                             <input
-                                                                type="number" value={emp.bonus} onChange={(e) => updateEmployment(emp.id, 'bonus', e.target.value)} placeholder="0"
+                                                                type="number" value={emp.bonus} onChange={(e) => updateEmployment(emp.id, 'bonus', e.target.value)} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} placeholder="0" min="0"
                                                                 aria-label={t.bonus}
                                                                 className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                             />
@@ -649,7 +673,7 @@ export default function App() {
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-semibold">RM</span>
                                                     <input
-                                                        type="number" value={emp.pcb} onChange={(e) => updateEmployment(emp.id, 'pcb', e.target.value)} placeholder="0"
+                                                        type="number" value={emp.pcb} onChange={(e) => updateEmployment(emp.id, 'pcb', e.target.value)} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} placeholder="0" min="0"
                                                         aria-label={t.pcb}
                                                         className="w-full pl-10 pr-3 py-3 bg-blue-50/50 border-0 ring-1 ring-blue-200 text-blue-900 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-lg font-bold placeholder:text-blue-200"
                                                     />
@@ -802,8 +826,12 @@ export default function App() {
                                 <div className="relative w-full md:w-44 shrink-0 group h-full min-h-[56px]">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500 transition-colors">RM</span>
                                     <input
-                                        id="relief-amount-input" type="number" value={reliefAmount} onChange={(e) => setReliefAmount(e.target.value)}
-                                        placeholder={t.amountPlaceholder}
+                                        id="relief-amount-input" type="number" value={reliefAmount} onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === '' || parseFloat(val) >= 0) setReliefAmount(val);
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
+                                        placeholder={t.amountPlaceholder} min="0"
                                         aria-label={t.selectRelief}
                                         className="w-full h-full pl-11 pr-4 py-3 md:py-0 bg-white ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-base font-semibold transition-all"
                                     />
@@ -864,11 +892,16 @@ export default function App() {
                                                             <input
                                                                 type="number"
                                                                 value={editingAmount}
-                                                                onChange={(e) => setEditingAmount(e.target.value)}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    if (val === '' || parseFloat(val) >= 0) setEditingAmount(val);
+                                                                }}
                                                                 onKeyDown={(e) => {
+                                                                    if (e.key === '-') e.preventDefault();
                                                                     if (e.key === 'Enter') saveEditRelief(rel.id);
                                                                     if (e.key === 'Escape') cancelEditRelief();
                                                                 }}
+                                                                min="0"
                                                                 className="w-28 pl-7 pr-2 py-1.5 bg-white ring-2 ring-blue-500 rounded-lg text-sm font-mono font-semibold outline-none"
                                                                 autoFocus
                                                             />
