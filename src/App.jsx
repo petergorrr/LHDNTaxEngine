@@ -3,23 +3,33 @@ import {
     Plus, Trash2, Info, CheckCircle2, AlertCircle,
     Globe, Receipt, ArrowRight, ShieldAlert, ShieldCheck,
     ChevronDown, Smartphone, Stethoscope, PiggyBank, Briefcase, Users, Zap,
-    Search, X, Check
+    Search, X, Check, Pencil
 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
-// --- TAX LOGIC & DATA (Verified YA 2025/2026) ---
-const TAX_BRACKETS = [
+// --- YEAR CONFIGURATION (Add new years here) ---
+const TAX_YEARS = [2025, 2026];
+
+// --- TAX LOGIC & DATA ---
+// Default tax brackets (used when year-specific brackets don't exist)
+const DEFAULT_TAX_BRACKETS = [
     { range: 5000, rate: 0.00 },
-    { range: 15000, rate: 0.01 },   // 5k - 20k
-    { range: 15000, rate: 0.03 },   // 20k - 35k
-    { range: 15000, rate: 0.06 },   // 35k - 50k
-    { range: 20000, rate: 0.11 },   // 50k - 70k
-    { range: 30000, rate: 0.19 },   // 70k - 100k
-    { range: 300000, rate: 0.25 },  // 100k - 400k
-    { range: 200000, rate: 0.26 },  // 400k - 600k
-    { range: 1400000, rate: 0.28 }, // 600k - 2m
-    { range: Infinity, rate: 0.30 } // > 2m
+    { range: 15000, rate: 0.01 },
+    { range: 15000, rate: 0.03 },
+    { range: 15000, rate: 0.06 },
+    { range: 20000, rate: 0.11 },
+    { range: 30000, rate: 0.19 },
+    { range: 300000, rate: 0.25 },
+    { range: 200000, rate: 0.26 },
+    { range: 1400000, rate: 0.28 },
+    { range: Infinity, rate: 0.30 }
 ];
+
+// Year-specific tax brackets (override DEFAULT_TAX_BRACKETS if needed)
+// Add entries here only if brackets differ from default
+const TAX_BRACKETS_BY_YEAR = {
+    // Example: 2027: [...different brackets...]
+};
 
 const DICT = {
     zh: {
@@ -61,15 +71,15 @@ const DICT = {
         thresholdSafe: "扣除 KWSP 后年收入超 RM37,333，依法您必须提呈报税表 (e-Filing)。",
         thresholdBelowWithPcb: "年收入低于门槛，依法无需报税。但强烈建议报税以全额索回 PCB 退款！",
         thresholdBelowNoPcb: "年收入低于门槛，无需报税。主动申报有助于建立良好的银行信用记录。",
-        tipsTitle: "System Insights (引擎洞察)",
-        tip1: "PCB 只是官方预收的押金。年度报税的核心是通过合法申报 Tax Relief，把多缴的钱合法拿回来。",
-        tip2: "法定截止日期为 4月30日 (Borang BE)，通过 ezHASiL 电子报税可享有额外 15 天宽限期。",
         quickAdd: "快速添加 (Quick Add):",
         disclaimer: "免责声明：本工具仅供估算参考，并非绝对准确的税务承诺应用。",
         monthlyMode: "月薪计算 (Monthly)",
         annualMode: "年薪计算 (Annual)",
         annualSalary: "全年总薪资 (Gross Annual)",
-        annualSalaryHelp: "全年薪资 + 花红等"
+        annualSalaryHelp: "全年薪资 + 花红等",
+        editRelief: "编辑减免",
+        editBtn: "更新",
+        cancelBtn: "取消"
     },
     en: {
         title: "LHDN Tax Engine",
@@ -110,15 +120,15 @@ const DICT = {
         thresholdSafe: "Net income exceeds RM37,333. You are legally required to file taxes via e-Filing.",
         thresholdBelowWithPcb: "Net income below RM37,333. Legally not required, but HIGHLY RECOMMENDED to file to claim back your PCB refund!",
         thresholdBelowNoPcb: "Net income below RM37,333. Voluntary filing helps build a solid banking Credit Profile.",
-        tipsTitle: "System Insights",
-        tip1: "PCB is merely a deposit. Tax submission is the process of declaring legal Tax Reliefs to claim back any overpaid PCB (Tax Refund).",
-        tip2: "Statutory deadline is April 30. e-Filing via ezHASiL grants an automatic 15-day grace period.",
         quickAdd: "Quick Add:",
         disclaimer: "Disclaimer: This calculator is for estimation purposes only and is not a fully accurate promised app to rely on.",
         monthlyMode: "Monthly",
         annualMode: "Annually",
         annualSalary: "Total Gross Salary",
-        annualSalaryHelp: "Gross Salary + Bonus etc."
+        annualSalaryHelp: "Gross Salary + Bonus etc.",
+        editRelief: "Edit Relief",
+        editBtn: "Update",
+        cancelBtn: "Cancel"
     },
     ms: {
         title: "LHDN Tax Engine",
@@ -159,15 +169,15 @@ const DICT = {
         thresholdSafe: "Pendapatan bersih melebihi RM37,333. Anda wajib memfailkan cukai melalui e-Filing.",
         thresholdBelowWithPcb: "Pendapatan bersih di bawah RM37,333. Tidak wajib, tetapi AMAT DISYORKAN untuk menuntut bayaran balik PCB!",
         thresholdBelowNoPcb: "Pendapatan bersih di bawah RM37,333. Pemfailan sukarela membantu membina Profil Kredit bank yang kukuh.",
-        tipsTitle: "Pandangan Sistem",
-        tip1: "PCB hanyalah deposit. Pemfailan cukai adalah proses mengisytiharkan Pelepasan Cukai yang sah untuk menuntut balik PCB yang terlebih bayar.",
-        tip2: "Tarikh akhir berkanun ialah 30 April. e-Filing melalui ezHASiL memberikan tempoh lanjutan automatik 15 hari.",
         quickAdd: "Tambah Cepat:",
         disclaimer: "Penafian: Kalkulator ini hanya untuk tujuan anggaran dan bukan aplikasi yang menjanjikan ketepatan sepenuhnya.",
         monthlyMode: "Bulanan",
         annualMode: "Tahunan",
         annualSalary: "Jumlah Gaji Kasar",
-        annualSalaryHelp: "Gaji Kasar + Bonus dll."
+        annualSalaryHelp: "Gaji Kasar + Bonus dll.",
+        editRelief: "Edit Pelepasan",
+        editBtn: "Kemaskini",
+        cancelBtn: "Batal"
     }
 };
 
@@ -191,7 +201,6 @@ const BASE_RELIEFS = [
     { id: 'kwsp', group: GROUPS.FOUNDATION, label: { zh: 'KWSP (公积金)', en: 'KWSP (EPF)', ms: 'KWSP (EPF)' }, max: 4000, desc: { zh: '法定的11%或自愿缴纳部分', en: 'Statutory 11% or voluntary contribution', ms: 'Caruman berkanun 11% atau sukarela' } },
     { id: 'prs', group: GROUPS.FOUNDATION, label: { zh: 'PRS (私人退休计划)', en: 'PRS', ms: 'PRS' }, max: 3000, desc: { zh: '私人退休金计划缴纳', en: 'Private Retirement Scheme', ms: 'Skim Persaraan Swasta' } },
     { id: 'housing', group: GROUPS.HOUSING, label: { zh: '首购房贷利息 (Housing Loan)', en: '1st Home Loan Interest', ms: 'Faedah Pinjaman Rumah Pertama' }, max: 7000, desc: { zh: '50万以下扣RM7k，50-75万扣RM5k', en: 'RM7k (<RM500k), RM5k (<RM750k)', ms: 'RM7k (<RM500k), RM5k (<RM750k)' } },
-    { id: 'child_under18', group: GROUPS.FAMILY, label: { zh: '子女 (< 18岁)', en: 'Child (< 18)', ms: 'Anak (< 18)' }, max: 2000, desc: { zh: '未满18岁未婚子女', en: 'Unmarried child under 18', ms: 'Anak belum berkahwin bawah 18 tahun' } },
 ];
 
 const RELIEF_DATABASE = {
@@ -210,6 +219,7 @@ const RELIEF_DATABASE = {
         { id: 'edu_self', group: GROUPS.HOUSING, label: { zh: '个人进修 (Education)', en: 'Education Fees', ms: 'Yuran Pendidikan' }, max: 7000, desc: { zh: '硕博课程，或特定技能提升(限RM2k)', en: 'Masters/PhD, or skills enhancement', ms: 'Sarjana/PhD, atau peningkatan kemahiran' } },
         { id: 'sspn', group: GROUPS.FAMILY, label: { zh: 'SSPN (教育储蓄)', en: 'SSPN (Net Savings)', ms: 'SSPN (Simpanan Bersih)' }, max: 8000, desc: { zh: '当年净存入数额', en: 'Net deposit for the year', ms: 'Simpanan bersih untuk tahun tersebut' } },
         { id: 'taska', group: GROUPS.FAMILY, label: { zh: '托儿所/幼儿园 (Childcare)', en: 'Childcare/Kindergarten', ms: 'Taska/Tadika' }, max: 3000, desc: { zh: '6岁及以下注册机构费用', en: 'Registered childcare fees (<= 6 yrs)', ms: 'Yuran penjagaan berdaftar (<= 6 tahun)' } },
+        { id: 'child_under18', group: GROUPS.FAMILY, label: { zh: '子女 (< 18岁)', en: 'Child (< 18)', ms: 'Anak (< 18)' }, max: 2000, desc: { zh: '未满18岁未婚子女', en: 'Unmarried child under 18', ms: 'Anak belum berkahwin bawah 18 tahun' } },
         { id: 'child_18plus', group: GROUPS.FAMILY, label: { zh: '子女进修 (> 18岁)', en: 'Child (18+ Tertiary)', ms: 'Anak (18+ Pengajian)' }, max: 8000, desc: { zh: '全职修读文凭/学位', en: 'Pursuing full-time Diploma/Degree', ms: 'Mengikuti Diploma/Ijazah sepenuh masa' } },
         { id: 'breastfeeding', group: GROUPS.FAMILY, label: { zh: '哺乳器材 (Breastfeeding)', en: 'Breastfeeding Equip', ms: 'Peralatan Penyusuan' }, max: 1000, desc: { zh: '限女性，2岁以下孩童 (每两年一次)', en: 'Female only, child < 2 yrs (Once per 2 yrs)', ms: 'Wanita sahaja, anak < 2 tahun (Sekali setiap 2 tahun)' } }
     ],
@@ -282,11 +292,15 @@ export default function App() {
     const [reliefAmount, setReliefAmount] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // Modal State
     const [isReliefsInfoOpen, setIsReliefsInfoOpen] = useState(false);
     const [modalSearchQuery, setModalSearchQuery] = useState('');
-    
+
+    // Edit State for inline relief editing
+    const [editingReliefId, setEditingReliefId] = useState(null);
+    const [editingAmount, setEditingAmount] = useState('');
+
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -373,6 +387,36 @@ export default function App() {
         document.getElementById('relief-amount-input').focus();
     };
 
+    // Edit relief handlers
+    const startEditRelief = (relief) => {
+        setEditingReliefId(relief.id);
+        setEditingAmount(relief.userTotal.toString());
+    };
+
+    const cancelEditRelief = () => {
+        setEditingReliefId(null);
+        setEditingAmount('');
+    };
+
+    const saveEditRelief = (categoryId) => {
+        if (!editingAmount || isNaN(editingAmount)) return;
+        const amountVal = parseFloat(editingAmount);
+        if (amountVal < 0) return;
+
+        setUserReliefs(prev => {
+            // Remove all entries for this category and add the new amount
+            const filtered = prev.filter(r => r.categoryId !== categoryId);
+            return [...filtered, {
+                id: Date.now().toString(),
+                categoryId: categoryId,
+                amount: amountVal,
+                isAuto: false
+            }];
+        });
+        setEditingReliefId(null);
+        setEditingAmount('');
+    };
+
     const updateEmployment = (id, field, value) => {
         setEmployments(prev => prev.map(emp =>
             emp.id === id ? { ...emp, [field]: value } : emp
@@ -394,6 +438,7 @@ export default function App() {
         const grossIncome = calcGrossIncome(employments, incomeMode);
         const pcb = employments.reduce((sum, emp) => sum + (parseFloat(emp.pcb) || 0), 0);
         const INDIVIDUAL_RELIEF = 9000;
+        const taxBrackets = TAX_BRACKETS_BY_YEAR[year] || DEFAULT_TAX_BRACKETS;
 
         // Single-pass: Calculate relief breakdown, totals, and capping
         let totalClaimedReliefs = 0;
@@ -419,7 +464,7 @@ export default function App() {
         let marginalRate = 0;
         const taxSteps = [];
 
-        for (const bracket of TAX_BRACKETS) {
+        for (const bracket of taxBrackets) {
             if (remainingIncome <= 0) break;
             const taxableInThisBracket = Math.min(remainingIncome, bracket.range);
             const taxForThisBracket = taxableInThisBracket * bracket.rate;
@@ -453,7 +498,7 @@ export default function App() {
             rebate, taxAssessed, finalBalance, isBelowThreshold,
             marginalRate: marginalRate * 100
         };
-    }, [employments, incomeMode, userReliefs, availableReliefs]);
+    }, [employments, incomeMode, userReliefs, availableReliefs, year]);
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900 selection:bg-blue-200">
@@ -484,13 +529,13 @@ export default function App() {
                         </div>
                         {/* Year Segmented Control */}
                         <div className="flex bg-slate-100 p-1 rounded-full ring-1 ring-slate-200">
-                            {[2025, 2026].map(y => (
+                            {TAX_YEARS.map(y => (
                                 <button
                                     key={y} onClick={() => handleYearChange(y)}
                                     className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${year === y ? 'bg-white shadow-sm text-slate-900 ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
-                                    {y === 2026 ? `YA ${y} ⚡` : `YA ${y}`}
+                                    {y === TAX_YEARS[TAX_YEARS.length - 1] ? `YA ${y} ⚡` : `YA ${y}`}
                                 </button>
                             ))}
                         </div>
@@ -554,6 +599,7 @@ export default function App() {
                                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                         <input
                                                             type="number" value={emp.annualSalary} onChange={(e) => updateEmployment(emp.id, 'annualSalary', e.target.value)} placeholder="0"
+                                                            aria-label={t.annualSalary}
                                                             className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                         />
                                                     </div>
@@ -566,6 +612,7 @@ export default function App() {
                                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                             <input
                                                                 type="number" value={emp.monthlySalary} onChange={(e) => updateEmployment(emp.id, 'monthlySalary', e.target.value)} placeholder="0"
+                                                                aria-label={t.monthlySalary}
                                                                 className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                             />
                                                         </div>
@@ -577,6 +624,7 @@ export default function App() {
                                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold group-focus-within:text-blue-500">RM</span>
                                                             <input
                                                                 type="number" value={emp.bonus} onChange={(e) => updateEmployment(emp.id, 'bonus', e.target.value)} placeholder="0"
+                                                                aria-label={t.bonus}
                                                                 className="w-full pl-10 pr-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900"
                                                             />
                                                         </div>
@@ -587,6 +635,7 @@ export default function App() {
                                                         <div className="relative group">
                                                             <input
                                                                 type="number" value={emp.months} onChange={(e) => updateEmployment(emp.id, 'months', e.target.value)} placeholder="12" min="1" max="12"
+                                                                aria-label={t.monthsLabel}
                                                                 className="w-full px-3 py-2.5 bg-white border-0 ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-base text-slate-900 text-center"
                                                             />
                                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-[10px] pointer-events-none">mths</span>
@@ -601,6 +650,7 @@ export default function App() {
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-semibold">RM</span>
                                                     <input
                                                         type="number" value={emp.pcb} onChange={(e) => updateEmployment(emp.id, 'pcb', e.target.value)} placeholder="0"
+                                                        aria-label={t.pcb}
                                                         className="w-full pl-10 pr-3 py-3 bg-blue-50/50 border-0 ring-1 ring-blue-200 text-blue-900 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-lg font-bold placeholder:text-blue-200"
                                                     />
                                                 </div>
@@ -754,6 +804,7 @@ export default function App() {
                                     <input
                                         id="relief-amount-input" type="number" value={reliefAmount} onChange={(e) => setReliefAmount(e.target.value)}
                                         placeholder={t.amountPlaceholder}
+                                        aria-label={t.selectRelief}
                                         className="w-full h-full pl-11 pr-4 py-3 md:py-0 bg-white ring-1 ring-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-base font-semibold transition-all"
                                     />
                                 </div>
@@ -805,16 +856,54 @@ export default function App() {
                                             </div>
 
                                             <div className="flex items-center gap-4 shrink-0">
-                                                <div className="text-right">
-                                                    <div className="font-mono text-lg font-bold text-slate-900 tracking-tight">RM {rel.cappedAmount.toLocaleString()}</div>
-                                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.effectiveDeduction}</div>
-                                                </div>
-                                                <button
-                                                    onClick={() => setUserReliefs(userReliefs.filter(r => r.categoryId !== rel.id))}
-                                                    className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                {/* Edit Mode or Display Mode */}
+                                                {editingReliefId === rel.id ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="relative">
+                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">RM</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editingAmount}
+                                                                onChange={(e) => setEditingAmount(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') saveEditRelief(rel.id);
+                                                                    if (e.key === 'Escape') cancelEditRelief();
+                                                                }}
+                                                                className="w-28 pl-7 pr-2 py-1.5 bg-white ring-2 ring-blue-500 rounded-lg text-sm font-mono font-semibold outline-none"
+                                                                autoFocus
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => saveEditRelief(rel.id)}
+                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                                        >
+                                                            {t.editBtn}
+                                                        </button>
+                                                        <button
+                                                            onClick={cancelEditRelief}
+                                                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                                        >
+                                                            {t.cancelBtn}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="text-right cursor-pointer" onClick={() => !rel.isAuto && startEditRelief(rel)}>
+                                                            <div className="font-mono text-lg font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">RM {rel.cappedAmount.toLocaleString()}</div>
+                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center justify-end gap-1">
+                                                                {!rel.isAuto && <Pencil size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                                                                {t.effectiveDeduction}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setUserReliefs(userReliefs.filter(r => r.categoryId !== rel.id))}
+                                                            className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                            aria-label={t.removeBtn}
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     ))
@@ -916,7 +1005,10 @@ export default function App() {
                                     </div>
 
                                     {/* Final Result Panel */}
-                                    <div className={`p-6 rounded-2xl transition-all duration-500 relative overflow-hidden ${calculations.finalBalance < 0
+                                    <div
+                                        aria-live="polite"
+                                        aria-atomic="true"
+                                        className={`p-6 rounded-2xl transition-all duration-500 relative overflow-hidden ${calculations.finalBalance < 0
                                         ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-900/20 ring-1 ring-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)]'
                                         : calculations.finalBalance > 0
                                             ? 'bg-gradient-to-br from-rose-500/10 to-orange-900/20 ring-1 ring-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.1)]'
